@@ -378,8 +378,6 @@ def sbm(n, p, directed=False, loops=False, wt=1, wtargs=None, dc=None, dcargs=No
     return A, P
 
 
-sim_dcsbm, dcsbm_P = sbm(counts, p, dc=dc, directed=True)
-
 #%% unsupervised
 
 # label, block = estimate_sbm_parameters(A, 5)
@@ -404,24 +402,45 @@ def degree_sorted_heatmap(A, labels, title=None):
     inds = argsort_by_degree(A)
     labels_sorted = labels[inds]
     A_sorted = A[inds, :][:, inds]
-    graspy.plot.heatmap(
+    if title == "Drosophila left MB":
+        cmap = "PiYG"
+    else:
+        cmap = "PiYG_r"
+    ax = graspy.plot.heatmap(
         A_sorted,
-        cmap="PiYG_r",
+        cmap=cmap,
         inner_hier_labels=labels_sorted,
         cbar=False,
         title=title,
+        context="notebook",
     )
-    plt.show()
+    plt.suptitle(title, y=0.98, x=0.06, fontsize=40, horizontalalignment="left")
+    # plt.tight_layout(pad=0.4, w_pad=0.5, h_pad=1.0)
+    plt.savefig(title)
+    return ax
 
 
+for i, l in enumerate(cell_labels):
+    if l == "MBON":
+        cell_labels[i] = "MO"
+    elif l == "MBIN":
+        cell_labels[i] = "MI"
+
+# inds = argsort_by_degree(adj_uw)
+# adj_uw = adj_uw[inds, :][:, inds]
+# cell_labels = cell_labels[inds]
 #%% wrangle cell labels
 cell_types, inds, inv, counts = np.unique(
     cell_labels, return_index=True, return_inverse=True, return_counts=True
 )
+swap = np.argsort(inds)
+cell_types = cell_types[swap]
+inds = inds[swap]
+counts = counts[swap]
 int_label_map = dict(zip(cell_types, np.arange(0, len(cell_types))))
 cell_types_int = [int_label_map[c] for c in cell_labels]
 
-
+#%%
 # calculate SBM parameters
 label_to, label_from = np.meshgrid(cell_types_int, cell_types_int)
 l_tuples = zip(label_from.ravel(), label_to.ravel())
@@ -448,7 +467,10 @@ for i, com in enumerate(cell_types):
 
 #%%
 # original
-degree_sorted_heatmap(adj_uw, cell_labels, "OG")
+
+name = "Drosophila left MB"
+fig = plt.figure()
+degree_sorted_heatmap(adj_uw, cell_labels, name)
 
 # ER
 total_p = np.sum(adj_uw) / adj_uw.size
@@ -466,31 +488,74 @@ degree_sorted_heatmap(sim_dcsbm, cell_labels, "DCSBM")
 # RDPG
 X, Y = graspy.embed.AdjacencySpectralEmbed().fit_transform(adj_uw)
 sim_rdpg = graspy.simulations.rdpg(X, Y, rescale=False, directed=True, loops=False)
-degree_sorted_heatmap(sim_rdpg, cell_labels, "RDPG (rank {})".format(X.shape[1]))
+degree_sorted_heatmap(sim_rdpg, cell_labels, "RDPG")
 
 
-#%% show the actual model fits
-p_sbm_supervised = sbm_p(counts, p, directed=True)
+# #%% show the actual model fits
+# p_sbm_supervised = sbm_p(counts, p, directed=True)
 
-ax = graspy.plot.heatmap(p_sbm_supervised, cmap="PiYG_r", inner_hier_labels=cell_labels)
-plt.show()
-p_rdpg = X @ Y.T
-p_rdpg[p_rdpg > 1] = 1
-p_rdpg[p_rdpg < 0] = 0
-graspy.plot.heatmap(p_rdpg, cmap="PiYG_r", inner_hier_labels=cell_labels)
-plt.show()
+# ax = graspy.plot.heatmap(p_sbm_supervised, cmap="PiYG_r", inner_hier_labels=cell_labels)
+# plt.show()
+# p_rdpg = X @ Y.T
+# p_rdpg[p_rdpg > 1] = 1
+# p_rdpg[p_rdpg < 0] = 0
+# graspy.plot.heatmap(p_rdpg, cmap="PiYG_r", inner_hier_labels=cell_labels)
+# plt.show()
+# #%%
+
+# get_block_probabilities(sim_dcsbm, cell_types_int)
+
+# #%%
+# a, b = np.meshgrid(dc, dc)
+# dc_mat = a * b
+# f = dc_mat * p_sbm_supervised
+# # graph = graspy.simulations.sample_edges(f)
+# graspy.plot.heatmap(f)
+# dc_inv = cartprod(degree_sum_vec, degree_sum_vec)
+
+# np.sum(f[:101, :101])
+# #%%
+# np.outer()
+
 #%%
+plt.figure(figsize=(10, 10))
+f = sns.color_palette("PiYG_r", n_colors=100)
+purp = f[-1]
+# f = sns.color_palette("PRGn_r", n_colors=100)
+green = f[0]
+n_verts = adj_uw.shape[0]
+params = [n_verts ** 2, 2 * X.size, 2 * n_verts + p.size, p.shape[0] + p.size, 1]
+params = np.array(params)
+log_params = np.log10(params)
+labels = ["Truth", "RDPG", "DCSBM", "SBM", "ER"]
+col = ["Real", "N", "N", "N", "N"]
+data = pd.DataFrame(columns=["Model", "# Parameters", "Type"])
+data["Model"] = labels
+data["# Parameters"] = params
+data["Type"] = col
+# ax = plt.subplot(111, aspect="equal")
 
-get_block_probabilities(sim_dcsbm, cell_types_int)
+with sns.plotting_context("talk", font_scale=1.6):
+    ax = sns.pointplot(
+        data=data,
+        x="Model",
+        y="# Parameters",
+        hue="Type",
+        palette=sns.color_palette([green, purp]),
+        saturation=1,
+        join=False,
+        scale=1.5,
+        markers="s",
+    )
+ax.set_xlabel("Model", fontsize=35)
+ax.set_ylabel("# Parameters", fontsize=35)
+ax.set_yscale("log")
+# ax.axvline(0.5, linestyle="--")
+ax.get_legend().remove()
+plt.subplots_adjust(left=0.15, bottom=0.15, right=0.9, top=0.9, wspace=0.5, hspace=0.5)
+plt.savefig("bar")
+
 
 #%%
-a, b = np.meshgrid(dc, dc)
-dc_mat = a * b
-f = dc_mat * p_sbm_supervised
-# graph = graspy.simulations.sample_edges(f)
-graspy.plot.heatmap(f)
-dc_inv = cartprod(degree_sum_vec, degree_sum_vec)
+n_verts * n_verts
 
-np.sum(f[:101, :101])
-#%%
-np.outer()
