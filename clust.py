@@ -170,9 +170,17 @@ for j, method in enumerate(methods):
     plt.title(method + "ARI")
     plt.show()
 #%%
-# plt.show()
-# plt.scatter(-latent[:, 0], latent[:, 1], s=1)
-# plt.axis("square")
+plt.show()
+with sns.plotting_context("talk"):
+    # plt.scatter(-latent[:, 0], latent[:, 1], s=1)
+    plt.figure(figsize=(10, 10))
+    df = pd.DataFrame(columns=["Out Dim 1", "Out Dim 2", "Type"])
+    df["Out Dim 1"] = -latent[:, 0]
+    df["Out Dim 2"] = latent[:, 1]
+    df["Type"] = cell_labels
+    sns.scatterplot(data=df, x="Out Dim 1", y="Out Dim 2", hue="Type")
+    plt.axis("square")
+    plt.show()
 #%%
 
 

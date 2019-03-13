@@ -22,7 +22,7 @@ lg = nx.read_graphml("left_edges.graphml")
 adj_lg = nx.to_numpy_array(lg)
 
 meta_df = pd.read_csv("left_labels.csv")
-cell_labels = meta_df["type"].values
+cell_labels_long = meta_df["type"].values
 
 adj_uw = adj_lg.copy()
 adj_uw[adj_uw > 0] = 1
@@ -399,9 +399,10 @@ def argsort_by_degree(A):
 
 
 def degree_sorted_heatmap(A, labels, title=None):
-    inds = argsort_by_degree(A)
-    labels_sorted = labels[inds]
-    A_sorted = A[inds, :][:, inds]
+    # inds = argsort_by_degree(A)
+    labels_sorted = labels  # labels[inds]
+    # A_sorted = A[inds, :][:, inds]
+    A_sorted = A
     if title == "Drosophila left MB":
         cmap = "PiYG"
     else:
@@ -420,11 +421,17 @@ def degree_sorted_heatmap(A, labels, title=None):
     return ax
 
 
-for i, l in enumerate(cell_labels):
-    if l == "MBON":
-        cell_labels[i] = "MO"
-    elif l == "MBIN":
-        cell_labels[i] = "MI"
+# for i, l in enumerate(cell_labels):
+#     if l == "MBON":
+#         cell_labels[i] = "MO"
+#     elif l == "MBIN":
+#         cell_labels[i] = "MI"
+#     elif l ==
+
+name_map = {"MBON": "O", "MBIN": "I", "KC": "K", "PN": "P"}
+from operator import itemgetter
+
+cell_labels = np.array(itemgetter(*cell_labels_long)(name_map))
 
 # inds = argsort_by_degree(adj_uw)
 # adj_uw = adj_uw[inds, :][:, inds]
